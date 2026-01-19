@@ -1,0 +1,26 @@
+# Mandatory items:
+
+[general]
+name=Instruction_ADS
+qgisMinimumVersion=3.0.0
+category=Tools
+description=produit un rapport d'interrogation des couches du projet quant à une parcelle cadastrale choisie
+version=1.1.0
+
+# Optional items:
+
+changelog=  1.1.0 recopie en local le projet et les couches, vérifie leur mise à jour respective.
+ 1.0.4 utilisation de des données cadastrales PCI Express
+ 1.0.3 modif requete intersection avec ftReq = QgsFeatureRequest() et ftReq.setFilterRect(geom_parcelle.boundingBox())
+ 1.0.2 Analyse thematique  des couches rapports.
+ 1.0.1 Elaboration d'un rapport des spécificités liées à la parcelle.
+ 1.0.0 Interrogations de couches du projet dédié à l'instruction des dossiers ADS concernées par la parcelle choisie.
+
+icon=Instruction_ADSico.jpg
+experimental=False
+
+# Author contact information
+author=Jean-Christophe Baudin
+email=jean-christophe.baudin@cote-dor.gouv.fr
+
+class_name=Instruction_ADS
