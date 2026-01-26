@@ -977,7 +977,7 @@ class Ui_Dialog(object):
             if not os.path.exists(chemin):
                 os.makedirs(chemin)
         else :
-            bureau = os.path.join(os.path.expanduser("~"), "desktop")   
+            bureau = os.path.join(os.path.expanduser("~"), "Bureau")   
             chemin = os.path.join(bureau, f"{nom_commune_dossier}_Rapports_ADS_{date_H_M}")
             if not os.path.exists(chemin):
                 os.makedirs(chemin)

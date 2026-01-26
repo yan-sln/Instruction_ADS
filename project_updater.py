@@ -81,10 +81,10 @@ def get_original_source_and_filter(layer_source):
     
     
 def remove_outputfolders(main_directory):
-    """Remove all files and subfolders within a given folder, then remove the folder it
-    Parameters:
-    main_directory (str): the path to the folder to be removed
-    """
+    #Remove all files and subfolders within a given folder, then remove the folder it
+    #Parameters:
+    #main_directory (str): the path to the folder to be removed
+     
     try:
         for root, dirs, files in os.walk(main_directory, topdown=False):
             for name in files:
@@ -97,8 +97,62 @@ def remove_outputfolders(main_directory):
     except Exception as e:
         print(f"An error occurred: {e}")
         
-
 def copy_shapefile_components(src_path, dst_dir):
+    # Liste des extensions de fichiers associés à un shapefile
+    shapefile_extensions = ['.shp', '.shx', '.dbf', '.prj', '.cpg', '.qml', '.sbn', '.sbx', '.fbn', '.fbx', '.ain', '.aih', '.ixs', '.mxs', '.atx', '.xml']
+
+    # Convertir le Path en chaîne de caractères pour utiliser replace
+    src_path_str = str(src_path)
+
+    # Vérifier la longueur du chemin source et destination
+    if len(src_path_str) > 255 or len(dst_dir) > 255:
+        QMessageBox.warning(
+            None,
+            "Erreur de chemin",
+            "Le chemin du fichier source ou de destination est trop long (plus de 255 caractères).\n"
+            "Le plugin sera lancé sans mise à jour des données."
+        )
+        return False
+
+    # Vérifier la connexion au fichier source (test de disponibilité)
+    max_retries = 3
+    retry_delay = 10  # secondes entre chaque essai
+    for _ in range(max_retries):
+        if os.path.exists(src_path_str):
+            break
+        time.sleep(retry_delay)
+    else:
+        # Si après 3 essais, le fichier n'est toujours pas accessible
+        QMessageBox.warning(
+            None,
+            "Erreur de connexion",
+            "Le fichier source est inaccessible après plusieurs tentatives.\n"
+            "Veuillez vérifier votre connexion réseau ou l'accès au fichier.\n"
+            "Le plugin sera lancé sans mise à jour des données."
+        )
+        return False
+
+    # Copier chaque fichier associé
+    for ext in shapefile_extensions:
+        src_file = src_path_str.replace('.shp', ext)
+        if os.path.exists(src_file):
+            dst_file = os.path.join(dst_dir, os.path.basename(src_file))
+            try:
+                shutil.copy2(src_file, dst_file)
+                print(f"Copié : {src_file} -> {dst_file}")
+            except OSError as e:
+                QMessageBox.warning(
+                    None,
+                    "Erreur de copie",
+                    f"Impossible de copier le fichier {src_file} vers {dst_file}.\n"
+                    f"Erreur : {e}\n"
+                    "Le plugin sera lancé sans mise à jour des données."
+                )
+                return False
+
+    return True
+    
+def copy_shapefile_components_old(src_path, dst_dir):
     # Liste des extensions de fichiers associés à un shapefile
     shapefile_extensions = ['.shp', '.shx', '.dbf', '.prj', '.cpg', '.qml', '.sbn', '.sbx', '.fbn', '.fbx', '.ain', '.aih', '.ixs', '.mxs', '.atx', '.xml']
 
@@ -482,122 +536,3 @@ def check_and_update_last_verif_date(local_folder):
                 writer.writerow([current_day])
 
     return current_day,last_day
- 
-"""
-def createur_csv_rapport_layer_3(qgz_file_url, local_folder):
-    # Vérifier si le fichier .qgz existe
-    qgz_file_path = Path(qgz_file_url)
-    if not qgz_file_path.exists():
-        print(f"Erreur : Le fichier {qgz_file_path} n'existe pas.")
-        return
-
-    # Vérifier si le fichier .qgz est un fichier ZIP valide
-    if not zipfile.is_zipfile(qgz_file_path):
-        print(f"Erreur : Le fichier {qgz_file_path} n'est pas un fichier ZIP valide.")
-        return
-
-    # Extraire le contenu du fichier .qgz
-    with zipfile.ZipFile(qgz_file_path, 'r') as z:
-        z.extractall(local_folder)
-
-    # Chemin du fichier .qgs extrait
-    qgs_file_path = Path(local_folder) / (qgz_file_path.stem + '.qgs')
-
-    # Lire le fichier .qgs
-    tree = ET.parse(qgs_file_path)
-    root = tree.getroot()
-
-    # Répertoire racine du projet original
-    project_root = qgz_file_path.parent
-
-    # Layers
-    layers_column_names = ['id', 'Type', 'name', 'storage', 'path', 'cree_le','date_MAJ']
-    layers_data = []
-
-    # Parcourir les couches dans le fichier .qgs
-    for index, maplayer in enumerate(root.findall(".//maplayer"), start=1):
-        layer_type = maplayer.get('type')
-        layer_name = maplayer.find('layername').text
-        datasource = maplayer.find('datasource')
-
-        if layer_type == 'vector':
-            TypeLayer = 'Vecteur'
-            layer_storage = 'Vector'
-        else:
-            TypeLayer = 'Rasteur'
-            layer_storage = 'Raster'
-
-        if datasource is not None:
-            src_file_rel = datasource.text
-            # Ignorer les flux WMS/WMTS
-            if 'url=' in src_file_rel or 'SERVICE=WMTS' in src_file_rel or 'SERVICE=WMS' in src_file_rel:
-                print(f"Flux WMS/WMTS détecté, ignoré pour le rapport CSV : {src_file_rel}")
-                continue
-
-            # Nettoyer le chemin pour enlever les paramètres de requête et les filtres
-            if '|' in src_file_rel:
-                src_file_rel, _ = src_file_rel.split('|', 1)
-            parsed_url = urlparse(src_file_rel)
-            clean_path = unquote(parsed_url.path)
-            src_file_abs = (project_root / clean_path).resolve()
-            path_url = src_file_abs.as_posix()
-            date_creation= get_file_creation_time(src_file_abs)
-            #date_creation= datetime.fromtimestamp(src_file_abs.stat().st_ctime).strftime('%Y-%m-%d %H:%M:%S')
-            date_MAJ = get_file_modification_time(src_file_abs)
-            #date_MAJ = datetime.fromtimestamp(src_file_abs.stat().st_mtime).strftime('%Y-%m-%d %H:%M:%S')
-        else:
-            path_url = ''
-            date_creation=''
-            date_MAJ = ''
-
-        layers_data.append([index, TypeLayer, layer_name, layer_storage, path_url, date_creation,  date_MAJ])
-
-    # Nom du projet
-    project_name = qgz_file_path.stem
-
-    # Créer le fichier CSV pour les couches
-    layers_file_name = 'rapport_couches_' + project_name + '_3.csv'
-    layers_csv_file = Path(local_folder) / layers_file_name
-    with open(layers_csv_file, mode='w', newline='', encoding='utf-8') as csv_file:
-        writer = csv.writer(csv_file, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        writer.writerow(layers_column_names)
-        writer.writerows(layers_data)
-
-    print(f"Rapport CSV des couches créé : {layers_csv_file}")
-
-    # Informations sur le projet
-    project_column_names = ['title', 'file_name', 'file_path', 'crs_project', 'layers_count', 'creation_date', 'last_save_date']
-    project_data = []
-
-    # Extraire les informations du projet
-    title_elem = root.find('.//title')
-    title = title_elem.text if title_elem is not None else ''
-
-    spatialrefsys_elem = root.find('.//spatialrefsys')
-    crs_project = spatialrefsys_elem.attrib.get('srsid', '') if spatialrefsys_elem is not None else ''
-
-    layers_count = len(root.findall(".//maplayer"))
-    creation_date = datetime.fromtimestamp(qgz_file_path.stat().st_ctime).strftime('%Y-%m-%d')
-    last_save_date = datetime.fromtimestamp(qgz_file_path.stat().st_mtime).strftime('%Y-%m-%d')
-
-    project_data.append([
-        title,
-        qgz_file_path.name,
-        qgz_file_path.parent.as_posix(),
-        crs_project,
-        layers_count,
-        creation_date,
-        last_save_date
-    ])
-
-    # Créer le fichier CSV pour les informations du projet
-    project_file_name = 'rapport_projet_' + project_name + '_3_.csv'
-    project_csv_file = Path(local_folder) / project_file_name
-    with open(project_csv_file, mode='w', newline='', encoding='utf-8') as csv_file:
-        writer = csv.writer(csv_file, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        writer.writerow(project_column_names)
-        writer.writerow(project_data[0])
-
-    print(f"Rapport CSV du projet créé : {project_csv_file}")
-
-"""
