@@ -8,5 +8,5 @@ Pour fonctionner le projet doit contenir à minima les couches 'cadastrales' nom
 On veillera à adapter aussi les lignes du code de dlgbox_IADS.py partout où les attributs de ces couches sont utilisés en précisant les noms de ceux-ci.
 Les couches de zonages à interroger sont rangées dans des groupes spécifiques qui doivent aussi être listés dans le corps du script juste après la définition des couches!                                                                                                                
 Cette extension ne fait pas partie du moteur de Qgis. Toute demande est à adresser à l'auteur : Jean-Christophe Baudin
-jean-christophe.baudin@cote-dor.gouv.fr
+ddt-mpit-adl@cote-dor.gouv.fr ou jeanchristophebaudin@ymail.com
 DDT21 SUCAT/BGAT
