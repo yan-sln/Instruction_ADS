@@ -43,8 +43,6 @@ import sys, os.path; sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from datetime import datetime
 
-import zipfile
-import xml.etree.ElementTree as ET # françois Thevand mail du 29 20 2024
 from pathlib import *
 
 
@@ -53,7 +51,6 @@ from processing import *
 import odswriter as ods
 import fonctions_lnstruction_ADS
 import doAbout_IADS
-import project_updater
 
 #Fonction de reconstruction du chemin absolu vers une ressource du plugin
 def resolve(name, basepath=None):
@@ -98,9 +95,9 @@ class Ui_Dialog(object):
         
         # l'utilisateur insère ici la liste des noms des couches de sa base de données qui sont utilisées dans le projet QGIS
         
-        nom_couche_commune='N_COMMUNE_PCIe_021'  
-        nom_couche_divcad='N_FEUILLE_PCIe_021'
-        nom_couche_parcelle='N_PARCELLE_PCIe_021'
+        nom_couche_commune='COMMUNE'
+        nom_couche_divcad='FEUILLE'
+        nom_couche_parcelle='PARCELLE'
         
         """
         nom_couche_commune='N_COMMUNE_BDP_021'  
@@ -121,163 +118,12 @@ class Ui_Dialog(object):
         Liste_des_groupes_a_interroger=['Eau','Autres SUP','Urbanisme','Nuisances','Risques naturels', 'Biodiversité','Patrimoine','Risques technologiques','Agriculture','Specifiques projets photovoltaïques'] 
 
         ##########################################################################
-        #         Vérification  de la présence de la copie locale du projet 
-        #                 "Maitre"  et des données liées 
+        #         Vérification  de la présence de la copie locale du projet
+        #                 "Maitre"  et des données liées
         ##########################################################################
-        
-        # chemin vers le projet maitre mis à jour par l'administrateur des données relatives au projet ADS
-        projet_maitre_url = "W:/3_PROJETS/Carto_ADS/Donnees_Instruction_ADS_Projet_Maitre.qgz"
-        # Diviser la chaîne en utilisant le séparateur '\'
-        parts = projet_maitre_url.split('\\')
-        # Le dernier élément de la liste est la partie après le dernier '\'
-        nom_projet_maitre = parts[-1] 
-       
-        # lecture du projet Maitre
-        #root = tree.getroot()
-        # En utilisant de la bibliothèque pathlib :
-        projet_maitre_root = Path(projet_maitre_url).parent
-        # Nom du fichier sans l'extention : 
-        projet_maitre_name = Path(projet_maitre_url).stem
-         
-        # basepath est le répertoire où se trouve le plugin
-        basepath=get_plugin_directory()
-        
-        # Test de première utilisation:
-        # on teste la présence en local d'un sous dossier projet_local
-        # s'il il n'existe pas c'est la première utilisation du plugin, on le crée.
-        # on va créer une liste des couches au même instant t avec leurs dernières dates de modification
-        
-        data_dir = os.path.join(basepath, 'projet_local')
-        # Dossier local où les couches sont stockées :                
-        local_folder = basepath + "/projet_local/"  
-        # définition du nom et du chemin du futur projet local 
-        Nom_PM = Path(projet_maitre_url).stem # Extraire le nom de base du fichier (sans l'extension)
-        project_local_name = f"{Nom_PM}_local.qgz"
-        project_local_path = os.path.join(local_folder, project_local_name)
-        project_local_path = project_local_path.replace('\\', '/')
-        
-        # nom et chemin du projet qgs produit en local à la lecture du projet maitre
-        project_qgs_name= f"{Nom_PM}.qgs"
-        project_qgs_path = os.path.join(local_folder, project_qgs_name)
-        project_qgs_path=project_qgs_path.replace('\\', '/')
-        # nom du tableur qui contiendra la liste des couches contenues dans le projet Maître
-        liste_locale_des_couches = 'rapport_couches_'+ projet_maitre_name +'.csv'
-            
-        QMessageBox.information(None,"information:","L'outil Instruction ADS, utilise une copie locale d'un"+ ' projet qgis "maître" nommé : '+ '\n'+ 
-            str(projet_maitre_name) + '\n'+
-            'Ce projet "Maître" est sur: '+'\n'+ 
-            str(projet_maitre_url) +'\n'+'\n'+
-            'La copie locale du projet est nommée : '+str(project_local_name)  +'\n'+ 
-            'Elle est copiée dans : ' +'\n'+ str(local_folder))
-        
-        # Cas de la première utilisation sur un poste: on va recopier couches et projet et créer des rapports
-        if not os.path.exists(data_dir):
-            # On ferme tout projet ouvert par précaution ! Suite au test avec Cédric... 
-            QgsProject.instance().clear()
-            os.makedirs(data_dir)
-            QMessageBox.information(None,"information:","Attention, c'est la première utilisation de l'outil sur ce poste : " +
-                    '\n'+'\n'+ "le projet qgis nécessaire et les couches qu'il contient vont être recopiés localement,"+
-                    '\n'+'\n'+ " c'est à dire dans un dossier appelé 'projet_local',"+
-                    '\n'+'\n'+ " la copie locale du plugin se trouve sur : "+ str(basepath)+
-                     '\n'+'\n'+ " Attention : il faut environ 20Go d'espace disque et s'armer de patience, "+'\n'+ 
-                     "et attendre jusqu'à l'apparition d'un prochain message ! ") 
-             
-            # lecture du projet Maitre
-            projet_maitre = QgsProject.instance()
-            projet_maitre.read(projet_maitre_url) # ouvre le projet !
-            #projet_maitre_name = (projet_maitre.fileName().split('/')[-1]).split('.')[0]
-                     
-            # création des rapports sur le projet Maitre avec date mise à jour
-            project_updater.createur_csv_rapport_project(projet_maitre, local_folder)
-            
-            # création des rapports sur les couches du projet Maitre avec date mise à jour
-            project_updater.createur_csv_rapport_layer(projet_maitre, local_folder)
-            #project_updater.createur_csv_rapport_layer_3(projet_maitre_url, local_folder)
-            
-            # Créer le projet local avec les couches locales 
-            output_project_path = project_updater.create_local_project_with_local_layers_2(projet_maitre_name,projet_maitre_url, local_folder)
-            
-            # Fermer le projet de départ
-            QgsProject.instance().clear()
-            # On crée le csv avec la date du jour comme date de première utilisation
-            # C'est la première utilisation, le jour de dernière utilisation est celui de la première en fait
-            current_day,date_locale_last_use=project_updater.check_and_update_last_verif_date(local_folder) 
-        
-        # Si il existe un dossier local, est-ce pour autant que la copie des couches s'est bien faite ?
-        # si c'est le cas , le processus doit s'etre achevé avec la production du projet local.qgz
-        # existe t'il un tel projet ?
-        if not os.path.exists(project_local_path):
-            QMessageBox.information(None,"information:","Attention, il y a un problème car il n'y a pas de projet local nommé : "+ str(project_local_name)+'\n' +
-            " dans le dossier : " + str(local_folder)+'\n' +
-            ' selon le chemin : '+ str(project_local_path))
-            # la copie des couches avait elle commencé ? Existe t'il un projet gqs produit au début du processus ?   
-            if os.path.exists(project_qgs_path):
-                QMessageBox.information(None,"information:","La création du projet_local n'a pas abouti."+'\n'+
-                'Mais il existe bien un projet .qgs qui correspond à une début de copie des données en local !'+'\n'+'\n'+
-                "Il y a donc eu un problème après que le projet : "+ 
-                str(project_qgs_name)+ " ai été créé dans : " +'\n'+ str(local_folder)+'\n'+'\n'+ 
-                '... Ce pourquoi on reprend le chargement des couches et on refabrique le projet .qgz')
-                project_updater.update_layers(liste_locale_des_couches, local_folder)
-                with zipfile.ZipFile(project_local_path, 'w') as z:
-                    # Ajouter uniquement le fichier .qgs modifié
-                    z.write(project_qgs_path, arcname=project_qgs_name)
-                    # Si tout est Ok on ouvre le projet local   
-                    # Ouvrir le projet local
-                projet_local_lu = QgsProject.instance()
-                projet_local_lu.read(project_local_path)
-                
-            else: # pb inconnu !
-                QMessageBox.information(None,"information:","il n'y pas de projet local : "+'\n'+
-                    str(project_qgs_name) +'\n'+
-                    'dans le dossier local : '+'\n'+ str(local_folder)+'\n'+'\n'+
-                    "Un problème innatendu est survenu. "+'\n'+
-                    'Supprimer le dossier : "projet_local"' +'\n'+
-                    'dans : '+'\n'+ str(basepath)+'\n'+
-                    'et relancer le plugin !')
-                # Fermer la boîte de dialogue
-                Dialog.reject() 
-            
-        # Sinon il existe à priori un projet .qgz, on vérifie la mise à jour du projet et des couches.
-        # De quand date la dernière utilisation ? 
-        current_day,date_locale_last_use=project_updater.check_and_update_last_verif_date(local_folder) 
-        # Quel est le jour de dernière utilisation en fait ?
-        if current_day != date_locale_last_use:             
-            # Comparer la date actuelle avec la date sauvegardée
-            # on ne met à jour les données qu'une fois par jour !
-            # le dossier local existe alors vérifions encore ...
-            QMessageBox.information(None,"information:","Avant de commencer on vérifie :"+ '\n'+'\n'+
-            "- si le projet maître a été modifié , "+'\n'+
-            "- si les couches qui le composent ont été modifiées . "+'\n'+'\n'+
-            "Ceci peut prendre plusieurs minutes .... ") 
-            
-            # Le projet Maitre a aussi pu etre modifié
-            # on vérifie si il y a eu ajout ou suppression de couche
-            # et on met éventuellement encore à jour:couches et projet local et rapports !
-            # verif_update_project(projet_maitre_url, local_project_path, local_layers_dir)
-            project_updater.verif_update_project(projet_maitre_url, projet_maitre_name, local_folder)
-            QMessageBox.information(None,"information:","Fin de la vérification de la mise à jour du projet maître") 
-                        
-            # Le projet maître peut ne pas avoir changé mais les couches qui le composent si...
-            # vérification des dernières mise à jour des couches
-            project_updater.update_layers(liste_locale_des_couches, local_folder)
-            QMessageBox.information(None,"information:","Fin de la vérification de la mise à jour des couches") 
 
-            # Si tout est Ok on ouvre le projet local   
-            # Ouvrir le projet local
-            projet_local_lu = QgsProject.instance()
-            projet_local_lu.read(project_local_path)
-  
-        else:# le plugin a déjà été utilisé aujourd'hui, on ne met pas à jour les couches
-            # Vérifier si un projet est actuellement ouvert ?
-            current_project_path = QgsProject.instance().fileName()
-            # Est-ce que le projet qui est ouvert est le bon ? 
-            if project_local_path == current_project_path : pass # Alors on continue
-            # Dans ce cas le prejet n'est pas à réouvrir, 
-            # ce qui permet de sélectionner plusieurs parcelles !
-            else: 
-                # Ouvrir le projet local car le projet ouvert n'est pas le bon
-                projet_local_lu = QgsProject.instance()
-                projet_local_lu.read(project_local_path)
+        # Use whatever project/layers are currently open in QGIS
+        project_local_path = QgsProject.instance().fileName()
         
         ###########################################################################################
         #         Vérifications de la présence des données du projet dédié à l'ADS 
@@ -321,8 +167,8 @@ class Ui_Dialog(object):
                     # les valeurs des  attributs des objets de la couche de lignes
                     attributs = feat_commune.attributes()
                     # version avec 'N_COMMUNE_PCIe_021'
-                    nom_commune=feat_commune[0] # équivalent à Liste_Communes.append(feat_commune['NOM_COM']) pour la couche N_COMMUNE_PCIe_021
-                    insee=feat_commune[2]  
+                    nom_commune=feat_commune['NOM_COM']
+                    insee=feat_commune['CODE_INSEE']
                     Liste_Communes.append(nom_commune) 
                     Poly_id = feat_commune.id()
                     geom_commune=feat_commune.geometry()
@@ -330,7 +176,7 @@ class Ui_Dialog(object):
                     YMIN=(geom_commune.boundingBox()).yMinimum()
                     XMAX=(geom_commune.boundingBox()).xMaximum()
                     YMAX=(geom_commune.boundingBox()).yMaximum()
-                    Dico_Communes[feat_commune[2]]=[Poly_id,nom_commune,XMIN,YMIN,XMAX,YMAX,insee]
+                    Dico_Communes[feat_commune['CODE_INSEE']]=[Poly_id,nom_commune,XMIN,YMIN,XMAX,YMAX,insee]
 
             except: iface.messageBar().pushMessage('Pb','Attention ce projet ne convient pas ! Pb avec la couche des communes !', Qgis.Warning)
         else :
@@ -605,13 +451,13 @@ class Ui_Dialog(object):
         feat_section=QgsFeature()
         # on charge les données dans un dictionnaire
         for feat_section in Couche_Sections.getFeatures():
-            nom_commune=feat_section[3]
-            if nom_commune == Selection_commune: 
+            nom_commune=feat_section['NOM_COM']
+            if nom_commune == Selection_commune:
                 attributs = feat_section.attributes()
-                num_feuille=feat_section[0]
-                nom_section=feat_section[1] # équivalent à Liste_Sections.append(feat_section['SECTION']) pour la couche nom_couche_divcad
+                num_feuille=feat_section['FEUILLE']
+                nom_section=feat_section['SECTION']
                 nom_section_feuille= nom_section+'_feuille_'+str(num_feuille)
-                nom_commune=feat_section[3]
+                nom_commune=feat_section['NOM_COM']
                 Liste_Sections.append(nom_section_feuille) 
                 Poly_id = feat_section.id()
                 geom_section=feat_section.geometry()
@@ -721,22 +567,19 @@ class Ui_Dialog(object):
         # et les nœuds de couche (QgsLayerTreeLayer). https://docs.qgis.org/3.10/fr/docs/pyqgis_developer_cookbook/legend.html
         root = QgsProject.instance().layerTreeRoot()
                 # root est un nœud de groupe et a des enfants : 
-        for grpt in range(len(Liste_des_groupes_a_interroger)):
-            nom_groupe=Liste_des_groupes_a_interroger[grpt]
+        for nom_groupe in Liste_des_groupes_a_interroger:
             groupe=root.findGroup(nom_groupe)
-            if groupe.children() is not None: # il faut des couches dans chaque groupe utlisé !
-                for child in groupe.children(): 
-                    name = child.layer().name() #  nom de la couche dans le groupe
-                    vLayer = QgsProject.instance().mapLayersByName(name)[0]
-                    if vLayer.isValid(): 
-                        #Dico_layers_a_interroger[name] = [vLayer,nom_groupe,child] # 20240221
-                        Dico_layers_a_interroger[name] = [vLayer,nom_groupe,name]
-                        Liste_couches_a_interroger.append(name)
-                        zdimR+=1 # une couche de plus au nombre des couches à interroger pour la progress bar de rapport
-                    else:
-                        QMessageBox.information(None,"information:",'La couche ' +str(name)+ ' n est pas une couche valide ! ')
-                        return None
-            else: QMessageBox.information(None,"DEBUG:","le groupe : "+ str(nom_groupe)+" pose pb !")
+            if groupe is None:
+                continue
+            for child in groupe.children():
+                if child.layer() is None:
+                    continue
+                name = child.layer().name()
+                vLayer = QgsProject.instance().mapLayersByName(name)[0]
+                if vLayer.isValid():
+                    Dico_layers_a_interroger[name] = [vLayer,nom_groupe,name]
+                    Liste_couches_a_interroger.append(name)
+                    zdimR+=1
    
         #-----------------------------------------------------------------------------------------------------------------------
         #                                                     THE ENGINE !             
@@ -759,11 +602,11 @@ class Ui_Dialog(object):
             Dico_layers_NON_concernees={}
             Rectangle_impression=[] # pour stocker l'étendue necessaires à la composition d'une carte et au bon seuil de zoom
             Parcelle_id=feat_parcelle.id()
-            nom_commune=feat_parcelle[4]
-            insee=str(feat_parcelle[3])+str(feat_parcelle[5]) # code insee = CODE_DEP concat CODE_COM
-            code_section=feat_parcelle[2]
-            feuille=feat_parcelle[1]
-            num_parcelle=feat_parcelle[0]
+            nom_commune=feat_parcelle['NOM_COM']
+            insee=str(feat_parcelle['CODE_DEP'])+str(feat_parcelle['CODE_COM'])
+            code_section=feat_parcelle['SECTION']
+            feuille=feat_parcelle['FEUILLE']
+            num_parcelle=feat_parcelle['NUMERO']
             rapport_name='Rapport_de_la_parcelle_'+str(num_parcelle)+'_section_'+str(code_section)+'_feuille_'+str(feuille)+'_commune_de_'+str(nom_commune)+'_insee_'+str(insee)
             
             geom_parcelle=feat_parcelle.geometry()
@@ -946,9 +789,10 @@ class Ui_Dialog(object):
             iface.layerTreeView().refreshLayerSymbology(clone.id())
             #--------------------------------------------------------------------------------------
             
-            # on supprime les couches initiales
+            # on supprime les couches initiales du groupe cadastre si il existe
             group_cadastre = root.findGroup('CADASTRE')
-            group_cadastre.removeLayer(layer_rapport)
+            if group_cadastre is not None:
+                group_cadastre.removeLayer(layer_rapport)
         # expand/collapse the group view
         iface.mapCanvas().refresh()    
         #Couche_Parcelle.removeSelection()
@@ -1095,11 +939,12 @@ class Ui_Dialog(object):
         # L'édition de carte est liée aux couches visibles, on va donc gérér cet affichage puis utilser QgsPrintLayout(project)
         
         # Pour commencer on eteint toutes les couches des groupes de couches à interroger:
-        for grpt in range(len(Liste_des_groupes_a_interroger)):
-            nom_groupe=Liste_des_groupes_a_interroger[grpt]
+        for nom_groupe in Liste_des_groupes_a_interroger:
             groupe=root.findGroup(nom_groupe)
+            if groupe is None:
+                continue
             groupe.setItemVisibilityChecked(False)
-            for child in groupe.children(): 
+            for child in groupe.children():
                 child.setItemVisibilityChecked(False)
                 #name = child.layer().name()
                          
@@ -1152,9 +997,10 @@ class Ui_Dialog(object):
         #---------------------------------------------------------------------------- 
         for key in  Rapport.keys():
             Liste_des_zonages_et_assiettes_concernes=(Rapport[key][5])
-            for grpt in range(len(Liste_des_groupes_a_interroger)):
-                nom_groupe=Liste_des_groupes_a_interroger[grpt]
+            for nom_groupe in Liste_des_groupes_a_interroger:
                 groupe=root.findGroup(nom_groupe)
+                if groupe is None:
+                    continue
                 for child in groupe.children():
                     child_name=child.name()
                     for idc, nom_layer in enumerate(Liste_des_zonages_et_assiettes_concernes):
@@ -1192,9 +1038,10 @@ class Ui_Dialog(object):
         #---------------------------------------------------------------------------- 
         for key in  Rapport.keys():
             Liste_des_zonages_et_assiettes_concernes=(Rapport[key][5])
-            for grpt in range(len(Liste_des_groupes_a_interroger)):
-                nom_groupe=Liste_des_groupes_a_interroger[grpt]
+            for nom_groupe in Liste_des_groupes_a_interroger:
                 groupe=root.findGroup(nom_groupe)
+                if groupe is None:
+                    continue
                 for child in groupe.children():
                     child_name=child.name()
                     for idc, nom_layer in enumerate(Liste_des_zonages_et_assiettes_concernes):
@@ -1301,11 +1148,12 @@ class Ui_Dialog(object):
                 # L'édition de carte est liée aux couches visibles, on va donc gérér cet affichage puis utilser QgsPrintLayout(project)
                 # Pour commencer on eteint toutes les couches des groupes de couches à interroger:
                 
-                for grpt in range(len(Liste_des_groupes_a_interroger)):
-                    nom_groupe=Liste_des_groupes_a_interroger[grpt]
+                for nom_groupe in Liste_des_groupes_a_interroger:
                     groupe=root.findGroup(nom_groupe)
+                    if groupe is None:
+                        continue
                     groupe.setItemVisibilityChecked(False)
-                    for child in groupe.children(): 
+                    for child in groupe.children():
                         child.setItemVisibilityChecked(False)
                         #name = child.layer().name()
                  
@@ -1523,7 +1371,8 @@ class Ui_Dialog(object):
                             elif len(groupe_de_la_couche_de_zonage) <2: pass
                             else:
                                 groupe_zonage=root.findGroup(groupe_de_la_couche_de_zonage)
-                                groupe_zonage.setItemVisibilityChecked(False) 
+                                if groupe_zonage is not None:
+                                    groupe_zonage.setItemVisibilityChecked(False)
                                 QgsProject.instance().layerTreeRoot().findLayer(couche_zonage_concernee.id()).setItemVisibilityChecked(False)
                                 
         QMessageBox.information(None,"Avertissement:"," Fin des traitements ! \n\nLes exports sont dans le dossier :\n" + str(chemin) )

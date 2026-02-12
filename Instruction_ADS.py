@@ -6,7 +6,6 @@ from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
 
-from console import *
 import sys, os.path;
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__))) 
@@ -53,8 +52,12 @@ class MainPlugin(object):
         self.iface.removeToolBarIcon(self.commande1)
 
     def LoadDlgBoxQt1(self):
+        import importlib
+        import dlgBox_IADS
+        importlib.reload(dlgBox_IADS)
+        import doDlgBox_IADS
+        importlib.reload(doDlgBox_IADS)
         d = doDlgBox_IADS.Dialog()
-        #d.show()
         d.exec_()
      
     def doInfo(self):
