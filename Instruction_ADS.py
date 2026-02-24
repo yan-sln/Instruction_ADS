@@ -11,9 +11,6 @@ import sys, os.path;
 sys.path.append(os.path.dirname(os.path.abspath(__file__))) 
 sys.path.append(os.path.dirname(__file__)) 
 
-# Import the code for the dialog
-from Instruction_ADS import doDlgBox_IADS, doAbout_IADS
-
 class MainPlugin(object):
       
     def __init__(self,iface):
@@ -75,4 +72,5 @@ def getThemeIcon(theName):
     myDefPathIcons =basepath + "/icons/"
     myDefPathIcons = myDefPathIcons.replace("\\","/")+ theName;
     if QFile.exists(myDefPathIcons): return myDefPathIcons  
+
     else: return ""
